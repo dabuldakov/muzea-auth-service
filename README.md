@@ -103,3 +103,12 @@ SPRING_PROFILES_ACTIVE=dev APP_MAIL_ENABLED=false ./gradlew bootRun
 
 Push в `main` запускает `.github/workflows/deploy.yml` (тесты + сборка, затем
 `docker compose up -d --build` на VPS). Внешний порт — `8087` (за nginx).
+
+## Прод
+
+- Публичный адрес: **https://auth.muzea.su** (TLS через certbot, редирект с HTTP).
+- `AUTH_ISSUER=https://auth.muzea.su`, `AUTH_AUDIENCE=api-muzea,chat-muzea`.
+- Ресурс-сервисы (`makeup`, `chat`) проверяют access-токены по
+  `https://auth.muzea.su/.well-known/jwks.json` и создают локального пользователя
+  по claim `sub` (поле `auth_subject`); собственный вход оставлен как legacy.
+
