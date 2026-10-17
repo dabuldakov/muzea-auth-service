@@ -59,6 +59,12 @@ public class UserService {
         }
     }
 
+    /** Удаляет аккаунт из IdP. */
+    @Transactional
+    public void delete(UUID id) {
+        userRepository.deleteById(id);
+    }
+
     public static String normalize(String email) {
         return email == null ? null : email.trim().toLowerCase(Locale.ROOT);
     }

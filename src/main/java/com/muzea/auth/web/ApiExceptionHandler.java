@@ -10,6 +10,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @Slf4j
 @RestControllerAdvice
@@ -19,6 +20,13 @@ public class ApiExceptionHandler {
     public ResponseEntity<AuthDtos.ApiError> handleAuth(AuthException ex) {
         return ResponseEntity.status(ex.status())
                 .body(new AuthDtos.ApiError(ex.code(), ex.getMessage()));
+    }
+
+    /** Неизвестный путь (в т.ч. сканеры вроде /.well-known/security.txt) → 404, не 500. */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<AuthDtos.ApiError> handleNotFound(NoResourceFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new AuthDtos.ApiError("not_found", "Not found"));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

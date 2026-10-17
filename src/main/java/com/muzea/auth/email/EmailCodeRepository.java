@@ -11,4 +11,6 @@ public interface EmailCodeRepository extends JpaRepository<EmailCode, UUID> {
             String email, EmailPurpose purpose);
 
     void deleteByEmailIgnoreCaseAndPurpose(String email, EmailPurpose purpose);
+
+    void deleteByEmailIgnoreCase(String email);
 }

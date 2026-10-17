@@ -15,7 +15,8 @@ class OtpRateLimiterTest {
     private AuthProperties properties(long cooldownSeconds, int maxPerHour) {
         return new AuthProperties("iss", List.of("aud"), 900, 3600,
                 new AuthProperties.Rsa("", "kid"),
-                new AuthProperties.Otp(6, 600, 5, cooldownSeconds, maxPerHour));
+                new AuthProperties.Otp(6, 600, 5, cooldownSeconds, maxPerHour),
+                new AuthProperties.RateLimit(60, 1));
     }
 
     @Test

@@ -14,7 +14,8 @@ public record AuthProperties(
         long accessTokenTtlSeconds,
         long refreshTokenTtlSeconds,
         Rsa rsa,
-        Otp otp
+        Otp otp,
+        RateLimit rateLimit
 ) {
 
     /**
@@ -30,5 +31,9 @@ public record AuthProperties(
             long requestCooldownSeconds,
             int maxRequestsPerHour
     ) {
+    }
+
+    /** Лимит запросов на IP (register/otp и т.п.). */
+    public record RateLimit(int perIpHourly, long ipCooldownSeconds) {
     }
 }

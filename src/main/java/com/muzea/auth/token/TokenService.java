@@ -97,6 +97,12 @@ public class TokenService {
         }
     }
 
+    /** Полное удаление refresh-сессий пользователя (при удалении аккаунта). */
+    @Transactional
+    public void deleteAllSessions(UUID userId) {
+        refreshTokenRepository.deleteByUserId(userId);
+    }
+
     @Transactional
     public void revokeSession(UUID userId, UUID sessionId) {
         refreshTokenRepository.findById(sessionId)

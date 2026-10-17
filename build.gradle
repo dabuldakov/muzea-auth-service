@@ -121,7 +121,7 @@ jacocoTestReport {
     )
 }
 
-// Гейт покрытия бизнес-кода. Порог стартовый; поднимается по мере роста тестов.
+// Гейт покрытия бизнес-кода. Порог поднят до уровня остальных сервисов.
 jacocoTestCoverageVerification {
     dependsOn jacocoTestReport
     executionData.setFrom(jacocoTestReport.executionData)
@@ -131,7 +131,7 @@ jacocoTestCoverageVerification {
             limit {
                 counter = 'LINE'
                 value = 'COVEREDRATIO'
-                minimum = 0.50
+                minimum = 0.70
             }
         }
     }

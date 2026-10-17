@@ -92,4 +92,13 @@ public class AuthService {
     public User currentUser(UUID userId) {
         return userService.getById(userId);
     }
+
+    /** Полное удаление аккаунта в IdP: сессии, коды и сам пользователь. */
+    @Transactional
+    public void deleteAccount(UUID userId) {
+        User user = userService.getById(userId);
+        tokenService.deleteAllSessions(userId);
+        emailCodeService.deleteForEmail(user.getEmail());
+        userService.delete(userId);
+    }
 }

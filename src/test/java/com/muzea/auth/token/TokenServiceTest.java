@@ -51,7 +51,8 @@ class TokenServiceTest {
         return new AuthProperties("https://auth.muzea.su", List.of("api-muzea", "chat-muzea"),
                 900, 2592000,
                 new AuthProperties.Rsa("", "primary"),
-                new AuthProperties.Otp(6, 600, 5, 60, 5));
+                new AuthProperties.Otp(6, 600, 5, 60, 5),
+                new AuthProperties.RateLimit(60, 1));
     }
 
     private User user() {

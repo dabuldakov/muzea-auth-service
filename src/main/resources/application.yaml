@@ -62,6 +62,9 @@ auth:
     max-attempts: ${AUTH_OTP_MAX_ATTEMPTS:5}
     request-cooldown-seconds: ${AUTH_OTP_COOLDOWN_SECONDS:60}
     max-requests-per-hour: ${AUTH_OTP_MAX_PER_HOUR:5}
+  rate-limit:
+    per-ip-hourly: ${AUTH_RATE_LIMIT_PER_IP_HOURLY:60}
+    ip-cooldown-seconds: ${AUTH_RATE_LIMIT_IP_COOLDOWN_SECONDS:1}
 
 app:
   cors:

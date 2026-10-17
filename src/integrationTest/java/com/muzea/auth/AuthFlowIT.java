@@ -44,6 +44,10 @@ class AuthFlowIT {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
+        // Тесты шлют много запросов с одного IP — снимаем лимит, чтобы не ловить 429.
+        registry.add("auth.rate-limit.per-ip-hourly", () -> "100000");
+        registry.add("auth.rate-limit.ip-cooldown-seconds", () -> "0");
+        registry.add("auth.otp.request-cooldown-seconds", () -> "0");
     }
 
     @Autowired
@@ -119,8 +123,25 @@ class AuthFlowIT {
     }
 
     @Test
-    void jwksIsPublic() {
-        ResponseEntity<Map> response = rest.getForEntity("/.well-known/jwks.json", Map.class);
+    void deleteAccountRemovesUser() {
+        String email = "delete-me@example.com";
+        postStatus("/auth/register", new AuthDtos.RegisterRequest(email, "deleteme", null));
+        String code = capturedCode(email, EmailPurpose.REGISTER);
+        ResponseEntity<AuthDtos.TokenResponse> verified = post("/auth/verify-email",
+                new AuthDtos.VerifyEmailRequest(email, code, "d1"), null, AuthDtos.TokenResponse.class);
+        String access = verified.getBody().accessToken();
+
+        ResponseEntity<AuthDtos.MessageResponse> deleted = rest.exchange("/auth/me",
+                HttpMethod.DELETE, new HttpEntity<>(headers(access)), AuthDtos.MessageResponse.class);
+        assertThat(deleted.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        // Аккаунта больше нет: /auth/me не находит пользователя.
+        assertThat(get("/auth/me", access, AuthDtos.ApiError.class).getStatusCode())
+                .isIn(HttpStatus.UNAUTHORIZED, HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void jwksIsPublic() {        ResponseEntity<Map> response = rest.getForEntity("/.well-known/jwks.json", Map.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).containsKey("keys");
     }

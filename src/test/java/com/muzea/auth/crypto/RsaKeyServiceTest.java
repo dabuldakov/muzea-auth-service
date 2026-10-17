@@ -17,7 +17,8 @@ class RsaKeyServiceTest {
         return new AuthProperties("https://auth.muzea.su", List.of("api-muzea"),
                 900, 3600,
                 new AuthProperties.Rsa(privateKey, "kid-1"),
-                new AuthProperties.Otp(6, 600, 5, 60, 5));
+                new AuthProperties.Otp(6, 600, 5, 60, 5),
+                new AuthProperties.RateLimit(60, 1));
     }
 
     @Test

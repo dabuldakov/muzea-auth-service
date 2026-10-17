@@ -45,7 +45,8 @@ class EmailCodeServiceTest {
 
     private final AuthProperties properties = new AuthProperties("iss", List.of("aud"), 900, 3600,
             new AuthProperties.Rsa("", "kid"),
-            new AuthProperties.Otp(6, 600, 3, 60, 5));
+            new AuthProperties.Otp(6, 600, 3, 60, 5),
+            new AuthProperties.RateLimit(60, 1));
 
     private EmailCodeService service() {
         return new EmailCodeService(repository, tokenHasher, mailService, properties);
