@@ -1,0 +1,67 @@
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USERNAME}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: UTC
+      PGTZ: UTC
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:5437:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - auth-network
+
+  app:
+    build: .
+    restart: unless-stopped
+    # Порт не публикуется наружу: масштабируем за nginx.
+    deploy:
+      replicas: ${APP_REPLICAS:-1}
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DATABASE_URL: ${POSTGRES_URL}
+      DATABASE_USERNAME: ${POSTGRES_USERNAME}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: UTC
+      MAIL_HOST: ${MAIL_HOST}
+      MAIL_PORT: ${MAIL_PORT}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      MAIL_FROM: ${MAIL_FROM}
+      AUTH_ISSUER: ${AUTH_ISSUER}
+      AUTH_AUDIENCE: ${AUTH_AUDIENCE}
+      # Приватный RSA-ключ (base64 PKCS#8). Без него prod не стартует.
+      AUTH_RSA_PRIVATE_KEY: ${AUTH_RSA_PRIVATE_KEY}
+      AUTH_RSA_KEY_ID: ${AUTH_RSA_KEY_ID:-primary}
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+    networks:
+      - auth-network
+
+  # Балансировщик: внешний порт 8087, внутри — на все реплики app.
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "8087:80"
+    volumes:
+      - ./deploy:/etc/nginx/conf.d:ro
+    depends_on:
+      - app
+    networks:
+      - auth-network
+
+networks:
+  auth-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

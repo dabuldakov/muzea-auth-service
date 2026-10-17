@@ -1,0 +1,23 @@
+# Прод: все секреты обязательны из окружения, без небезопасных дефолтов.
+spring:
+  jpa:
+    show-sql: false
+
+app:
+  mail:
+    enabled: true
+
+auth:
+  # Нет дефолта — приложение не стартует без приватного ключа.
+  rsa:
+    private-key: ${AUTH_RSA_PRIVATE_KEY}
+
+server:
+  error:
+    # Не раскрываем внутренние сообщения об ошибках наружу.
+    include-message: never
+    include-binding-errors: never
+
+logging:
+  level:
+    com.muzea.auth: INFO

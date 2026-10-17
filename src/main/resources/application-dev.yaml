@@ -1,0 +1,13 @@
+# Локальная разработка: значения «из коробки». Секреты намеренно небезопасные.
+spring:
+  jpa:
+    show-sql: true
+
+app:
+  mail:
+    # В dev письма не уходят, OTP-код печатается в лог.
+    enabled: ${APP_MAIL_ENABLED:false}
+
+logging:
+  level:
+    com.muzea.auth: DEBUG

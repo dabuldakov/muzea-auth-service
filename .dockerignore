@@ -1,0 +1,12 @@
+# Не кладём в образ то, что не влияет на сборку: кэш Docker-слоя `COPY . .`
+# не инвалидируется из-за правок compose/README/CI.
+.git
+.github
+.gradle
+.idea
+build
+*.md
+*.iml
+deploy
+docker-compose*.yaml
+.env
