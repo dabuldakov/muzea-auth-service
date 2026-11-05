@@ -69,6 +69,9 @@ auth:
 app:
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:*}
+  # Доверять X-Forwarded-For можно только за доверенным прокси, который сам
+  # перезаписывает заголовок; иначе клиент подменит IP и обойдёт rate-limit.
+  trust-proxy-headers: ${APP_TRUST_PROXY_HEADERS:false}
   mail:
     # false — письма не отправляются, код пишется в лог (dev/CI).
     enabled: ${APP_MAIL_ENABLED:false}

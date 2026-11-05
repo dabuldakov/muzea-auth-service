@@ -150,6 +150,135 @@ class AuthFlowIT {
     void protectedEndpointRequiresToken() {
         assertThat(get("/auth/me", null, AuthDtos.ApiError.class).getStatusCode())
                 .isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(get("/auth/sessions", null, AuthDtos.ApiError.class).getStatusCode())
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    void logoutRevokesRefreshToken() {
+        String email = "logout@example.com";
+        postStatus("/auth/register", new AuthDtos.RegisterRequest(email, "logoutuser", null));
+        String code = capturedCode(email, EmailPurpose.REGISTER);
+        AuthDtos.TokenResponse tokens = post("/auth/verify-email",
+                new AuthDtos.VerifyEmailRequest(email, code, "d1"), null,
+                AuthDtos.TokenResponse.class).getBody();
+
+        assertThat(postStatus("/auth/logout",
+                new AuthDtos.LogoutRequest(tokens.refreshToken()))).isEqualTo(HttpStatus.OK);
+        assertThat(postStatus("/auth/token/refresh",
+                new AuthDtos.RefreshRequest(tokens.refreshToken(), "d1")))
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    void sessionsAreListedAndCanBeRevoked() {
+        String email = "sessions@example.com";
+        postStatus("/auth/register", new AuthDtos.RegisterRequest(email, "sessionsuser", null));
+        String registerCode = capturedCode(email, EmailPurpose.REGISTER);
+        AuthDtos.TokenResponse first = post("/auth/verify-email",
+                new AuthDtos.VerifyEmailRequest(email, registerCode, "d1"), null,
+                AuthDtos.TokenResponse.class).getBody();
+
+        postStatus("/auth/otp/request", new AuthDtos.OtpRequest(email));
+        String loginCode = capturedCode(email, EmailPurpose.LOGIN);
+        AuthDtos.TokenResponse second = post("/auth/otp/verify",
+                new AuthDtos.OtpVerifyRequest(email, loginCode, "d2", null), null,
+                AuthDtos.TokenResponse.class).getBody();
+
+        AuthDtos.SessionResponse[] sessions = rest.exchange("/auth/sessions",
+                HttpMethod.GET, new HttpEntity<>(headers(first.accessToken())),
+                AuthDtos.SessionResponse[].class).getBody();
+        assertThat(sessions).hasSize(2);
+
+        AuthDtos.SessionResponse device1 = null;
+        for (AuthDtos.SessionResponse session : sessions) {
+            if ("d1".equals(session.deviceId())) {
+                device1 = session;
+            }
+        }
+        assertThat(device1).isNotNull();
+
+        assertThat(rest.exchange("/auth/sessions/" + device1.id(), HttpMethod.DELETE,
+                new HttpEntity<>(headers(first.accessToken())),
+                AuthDtos.MessageResponse.class).getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        assertThat(postStatus("/auth/token/refresh",
+                new AuthDtos.RefreshRequest(first.refreshToken(), "d1")))
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(postStatus("/auth/token/refresh",
+                new AuthDtos.RefreshRequest(second.refreshToken(), "d2")))
+                .isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    void logoutAllRevokesEverySession() {
+        String email = "logout-all@example.com";
+        postStatus("/auth/register", new AuthDtos.RegisterRequest(email, "logoutall", null));
+        String registerCode = capturedCode(email, EmailPurpose.REGISTER);
+        AuthDtos.TokenResponse first = post("/auth/verify-email",
+                new AuthDtos.VerifyEmailRequest(email, registerCode, "d1"), null,
+                AuthDtos.TokenResponse.class).getBody();
+
+        postStatus("/auth/otp/request", new AuthDtos.OtpRequest(email));
+        String loginCode = capturedCode(email, EmailPurpose.LOGIN);
+        AuthDtos.TokenResponse second = post("/auth/otp/verify",
+                new AuthDtos.OtpVerifyRequest(email, loginCode, "d2", null), null,
+                AuthDtos.TokenResponse.class).getBody();
+
+        assertThat(rest.exchange("/auth/logout-all", HttpMethod.POST,
+                new HttpEntity<>(headers(first.accessToken())),
+                AuthDtos.MessageResponse.class).getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        assertThat(postStatus("/auth/token/refresh",
+                new AuthDtos.RefreshRequest(first.refreshToken(), "d1")))
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(postStatus("/auth/token/refresh",
+                new AuthDtos.RefreshRequest(second.refreshToken(), "d2")))
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    void validationAndUnknownPathReturnStructuredErrors() {
+        ResponseEntity<AuthDtos.ApiError> invalid = post("/auth/register",
+                new AuthDtos.RegisterRequest("not-an-email", "u", null), null,
+                AuthDtos.ApiError.class);
+        assertThat(invalid.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(invalid.getBody().code()).isEqualTo("validation_error");
+
+        ResponseEntity<AuthDtos.ApiError> missing = get("/.well-known/does-not-exist",
+                null, AuthDtos.ApiError.class);
+        assertThat(missing.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(missing.getBody().code()).isEqualTo("not_found");
+    }
+
+    @Test
+    void corsAllowsConfiguredOriginAndRejectsForeign() {
+        HttpHeaders allowed = new HttpHeaders();
+        allowed.setOrigin("http://localhost:3000");
+        allowed.setAccessControlRequestMethod(HttpMethod.GET);
+        ResponseEntity<String> ok = rest.exchange("/auth/me", HttpMethod.OPTIONS,
+                new HttpEntity<>(allowed), String.class);
+        assertThat(ok.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(ok.getHeaders().getAccessControlAllowOrigin())
+                .isEqualTo("http://localhost:3000");
+
+        HttpHeaders foreign = new HttpHeaders();
+        foreign.setOrigin("https://evil.example");
+        foreign.setAccessControlRequestMethod(HttpMethod.GET);
+        ResponseEntity<String> rejected = rest.exchange("/auth/me", HttpMethod.OPTIONS,
+                new HttpEntity<>(foreign), String.class);
+        assertThat(rejected.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    void defensiveHeadersArePresentOnUnauthorizedResponse() {
+        ResponseEntity<String> response = rest.exchange("/auth/me", HttpMethod.GET,
+                new HttpEntity<>(new HttpHeaders()), String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(response.getHeaders().getFirst("X-Content-Type-Options")).isEqualTo("nosniff");
+        assertThat(response.getHeaders().getFirst("X-Frame-Options")).isEqualTo("DENY");
+        assertThat(response.getHeaders().getFirst("Cache-Control")).contains("no-store");
     }
 
     private String capturedCode(String email, EmailPurpose purpose) {

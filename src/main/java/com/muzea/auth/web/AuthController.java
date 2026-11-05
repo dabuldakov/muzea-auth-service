@@ -1,5 +1,6 @@
 package com.muzea.auth.web;
 
+import com.muzea.auth.security.ClientIpResolver;
 import com.muzea.auth.security.IpRateLimiter;
 import com.muzea.auth.service.AuthService;
 import com.muzea.auth.token.IssuedTokens;
@@ -30,11 +31,12 @@ public class AuthController {
 
     private final AuthService authService;
     private final IpRateLimiter ipRateLimiter;
+    private final ClientIpResolver clientIpResolver;
 
     @PostMapping("/register")
     public AuthDtos.MessageResponse register(@Valid @RequestBody AuthDtos.RegisterRequest request,
                                              HttpServletRequest httpRequest) {
-        ipRateLimiter.checkAndRecord(clientIp(httpRequest));
+        ipRateLimiter.checkAndRecord(clientIpResolver.resolve(httpRequest));
         authService.register(request.email(), request.username(), request.displayName());
         return new AuthDtos.MessageResponse("Verification code sent");
     }
@@ -42,7 +44,7 @@ public class AuthController {
     @PostMapping("/verify-email")
     public AuthDtos.TokenResponse verifyEmail(@Valid @RequestBody AuthDtos.VerifyEmailRequest request,
                                               HttpServletRequest httpRequest) {
-        ipRateLimiter.checkAndRecord(clientIp(httpRequest));
+        ipRateLimiter.checkAndRecord(clientIpResolver.resolve(httpRequest));
         IssuedTokens issued = authService.verifyEmail(request.email(), request.code(),
                 session(request.deviceId(), httpRequest));
         return toTokenResponse(issued);
@@ -52,7 +54,7 @@ public class AuthController {
     public AuthDtos.MessageResponse resendVerification(
             @Valid @RequestBody AuthDtos.ResendVerificationRequest request,
             HttpServletRequest httpRequest) {
-        ipRateLimiter.checkAndRecord(clientIp(httpRequest));
+        ipRateLimiter.checkAndRecord(clientIpResolver.resolve(httpRequest));
         authService.resendVerification(request.email());
         return new AuthDtos.MessageResponse("If the account exists, a code has been sent");
     }
@@ -60,7 +62,7 @@ public class AuthController {
     @PostMapping("/otp/request")
     public AuthDtos.MessageResponse requestLoginCode(@Valid @RequestBody AuthDtos.OtpRequest request,
                                                      HttpServletRequest httpRequest) {
-        ipRateLimiter.checkAndRecord(clientIp(httpRequest));
+        ipRateLimiter.checkAndRecord(clientIpResolver.resolve(httpRequest));
         authService.requestLoginCode(request.email());
         return new AuthDtos.MessageResponse("If the account exists, a code has been sent");
     }
@@ -68,7 +70,7 @@ public class AuthController {
     @PostMapping("/otp/verify")
     public AuthDtos.TokenResponse verifyLoginCode(@Valid @RequestBody AuthDtos.OtpVerifyRequest request,
                                                   HttpServletRequest httpRequest) {
-        ipRateLimiter.checkAndRecord(clientIp(httpRequest));
+        ipRateLimiter.checkAndRecord(clientIpResolver.resolve(httpRequest));
         IssuedTokens issued = authService.verifyLoginCode(request.email(), request.code(),
                 session(request.deviceId(), httpRequest));
         return toTokenResponse(issued);
@@ -142,15 +144,9 @@ public class AuthController {
                 token.getIp(), token.getCreatedAt(), token.getLastUsedAt());
     }
 
-    private static SessionInfo session(String deviceId, HttpServletRequest request) {
-        return new SessionInfo(deviceId, request.getHeader("User-Agent"), clientIp(request));
+    private SessionInfo session(String deviceId, HttpServletRequest request) {
+        return new SessionInfo(deviceId, request.getHeader("User-Agent"),
+                clientIpResolver.resolve(request));
     }
 
-    private static String clientIp(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            return forwarded.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
-    }
 }

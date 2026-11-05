@@ -1,5 +1,10 @@
 # Прод: все секреты обязательны из окружения, без небезопасных дефолтов.
 spring:
+  datasource:
+    # Без дефолтов: приложение не должно стартовать с admin/admin в проде.
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
   jpa:
     show-sql: false
 
@@ -21,3 +26,10 @@ server:
 logging:
   level:
     com.muzea.auth: INFO
+
+# Swagger/OpenAPI в проде отключён: не раскрываем карту auth-API.
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
