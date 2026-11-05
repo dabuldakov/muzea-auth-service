@@ -112,8 +112,13 @@ class JwtConfigTest {
     @Test
     void rejectsTamperedSignature() throws Exception {
         String valid = validToken();
-        char last = valid.charAt(valid.length() - 1);
-        String tampered = valid.substring(0, valid.length() - 1) + (last == 'A' ? 'B' : 'A');
+        String[] parts = valid.split("\\.");
+        // Меняем символ в середине payload: последний символ base64 может
+        // попасть в padding-биты и не изменить подпись.
+        char[] payload = parts[1].toCharArray();
+        int index = payload.length / 2;
+        payload[index] = payload[index] == 'A' ? 'B' : 'A';
+        String tampered = parts[0] + "." + new String(payload) + "." + parts[2];
 
         assertThatThrownBy(() -> decoder.decode(tampered)).isInstanceOf(JwtException.class);
     }
