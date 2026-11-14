@@ -44,6 +44,14 @@ public class User {
     @Builder.Default
     private boolean emailVerified = false;
 
+    /** Аккаунт удалён: вход закрыт до реактивации поддержкой. */
+    @Column(name = "is_deleted", nullable = false)
+    @Builder.Default
+    private boolean isDeleted = false;
+
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

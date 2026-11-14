@@ -73,6 +73,9 @@ public class TokenService {
 
         User user = userRepository.findById(stored.getUserId())
                 .orElseThrow(() -> AuthException.unauthorized("user_not_found", "User no longer exists"));
+        if (user.isDeleted()) {
+            throw AuthException.unauthorized("account_deleted", "Account is deactivated");
+        }
 
         stored.setRevoked(true);
         stored.setLastUsedAt(now);

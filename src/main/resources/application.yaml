@@ -117,3 +117,7 @@ management:
   health:
     mail:
       enabled: false
+
+support:
+  # Токен поддержки для реактивации удалённых аккаунтов.
+  token: ${SUPPORT_TOKEN:}

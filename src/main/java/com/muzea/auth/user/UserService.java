@@ -51,6 +51,27 @@ public class UserService {
         return userRepository.save(user);
     }
 
+    /**
+     * Мягкое удаление: строка, email и username остаются, вход закрыт до
+     * реактивации поддержкой.
+     */
+    @Transactional
+    public void deactivate(User user) {
+        user.setDeleted(true);
+        user.setDeletedAt(java.time.Instant.now());
+        userRepository.save(user);
+    }
+
+    /** Возврат аккаунта после письма в поддержку. */
+    @Transactional
+    public User reactivate(UUID id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> AuthException.badRequest("user_not_found", "User not found"));
+        user.setDeleted(false);
+        user.setDeletedAt(null);
+        return userRepository.save(user);
+    }
+
     @Transactional
     public void markEmailVerified(User user) {
         if (!user.isEmailVerified()) {

@@ -40,6 +40,7 @@ public class AuthService {
     @Transactional
     public IssuedTokens verifyEmail(String email, String code, SessionInfo session) {
         User user = userService.getByEmail(email);
+        requireActive(user);
         emailCodeService.verify(user.getEmail(), EmailPurpose.REGISTER, code);
         userService.markEmailVerified(user);
         return tokenService.issue(user, session);
@@ -49,7 +50,7 @@ public class AuthService {
     public void resendVerification(String email) {
         rateLimiter.checkAndRecord(email, EmailPurpose.REGISTER);
         userService.findByEmail(email)
-                .filter(user -> !user.isEmailVerified())
+                .filter(user -> !user.isDeleted() && !user.isEmailVerified())
                 .ifPresent(user -> emailCodeService.issue(user.getEmail(), EmailPurpose.REGISTER));
     }
 
@@ -57,7 +58,7 @@ public class AuthService {
     public void requestLoginCode(String email) {
         rateLimiter.checkAndRecord(email, EmailPurpose.LOGIN);
         userService.findByEmail(email)
-                .filter(User::isEmailVerified)
+                .filter(user -> !user.isDeleted() && user.isEmailVerified())
                 .ifPresent(user -> emailCodeService.issue(user.getEmail(), EmailPurpose.LOGIN));
     }
 
@@ -65,6 +66,7 @@ public class AuthService {
     @Transactional
     public IssuedTokens verifyLoginCode(String email, String code, SessionInfo session) {
         User user = userService.getByEmail(email);
+        requireActive(user);
         emailCodeService.verify(user.getEmail(), EmailPurpose.LOGIN, code);
         return tokenService.issue(user, session);
     }
@@ -90,15 +92,27 @@ public class AuthService {
     }
 
     public User currentUser(UUID userId) {
-        return userService.getById(userId);
+        User user = userService.getById(userId);
+        requireActive(user);
+        return user;
     }
 
-    /** Полное удаление аккаунта в IdP: сессии, коды и сам пользователь. */
+    private void requireActive(User user) {
+        if (user.isDeleted()) {
+            throw com.muzea.auth.error.AuthException.unauthorized(
+                    "account_deleted", "Account is deactivated");
+        }
+    }
+
+    /**
+     * Удаление аккаунта в IdP = деактивация: сессии и коды убираем, вход
+     * закрываем, но строку с email и username оставляем для реактивации.
+     */
     @Transactional
     public void deleteAccount(UUID userId) {
         User user = userService.getById(userId);
         tokenService.deleteAllSessions(userId);
         emailCodeService.deleteForEmail(user.getEmail());
-        userService.delete(userId);
+        userService.deactivate(user);
     }
 }

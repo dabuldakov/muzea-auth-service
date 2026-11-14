@@ -75,7 +75,7 @@ class AuthServiceTest {
     }
 
     @Test
-    void deleteAccountRemovesSessionsCodesAndUser() {
+    void deleteAccountDeactivatesSessionsCodesAndUser() {
         UUID id = UUID.randomUUID();
         User user = User.builder()
                 .id(id).email("a@b.c").username("a").emailVerified(true).build();
@@ -85,6 +85,26 @@ class AuthServiceTest {
 
         verify(tokenService).deleteAllSessions(id);
         verify(emailCodeService).deleteForEmail("a@b.c");
-        verify(userService).delete(id);
+        verify(userService).deactivate(user);
+        verify(userService, never()).delete(any());
+    }
+
+    @Test
+    void deletedAccountCannotLoginOrRequestCodes() {
+        User deleted = User.builder()
+                .id(UUID.randomUUID()).email("a@b.c").username("a")
+                .emailVerified(true).isDeleted(true).build();
+        when(userService.getByEmail("a@b.c")).thenReturn(deleted);
+        when(userService.findByEmail("a@b.c")).thenReturn(java.util.Optional.of(deleted));
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                com.muzea.auth.error.AuthException.class,
+                () -> authService.verifyLoginCode("a@b.c", "123456",
+                        new com.muzea.auth.token.SessionInfo("d", "ua", "ip"))
+        );
+        authService.requestLoginCode("a@b.c");
+
+        verify(tokenService, never()).issue(any(), any());
+        verify(emailCodeService, never()).issue(any(), any());
     }
 }
