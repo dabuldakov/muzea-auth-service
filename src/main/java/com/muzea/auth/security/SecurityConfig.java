@@ -50,7 +50,10 @@ public class SecurityConfig {
                                 "/auth/otp/request",
                                 "/auth/otp/verify",
                                 "/auth/token/refresh",
-                                "/auth/logout"
+                                "/auth/logout",
+                                // Реактивация поддержкой: доступ проверяется
+                                // служебным X-Support-Token в контроллере.
+                                "/support/**"
                         ).permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2

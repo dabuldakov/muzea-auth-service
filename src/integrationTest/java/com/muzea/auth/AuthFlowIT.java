@@ -48,6 +48,7 @@ class AuthFlowIT {
         registry.add("auth.rate-limit.per-ip-hourly", () -> "100000");
         registry.add("auth.rate-limit.ip-cooldown-seconds", () -> "0");
         registry.add("auth.otp.request-cooldown-seconds", () -> "0");
+        registry.add("support.token", () -> "test-support-token");
     }
 
     @Autowired
@@ -123,21 +124,39 @@ class AuthFlowIT {
     }
 
     @Test
-    void deleteAccountRemovesUser() {
+    void deleteAccountDeactivatesUntilSupportReactivates() {
         String email = "delete-me@example.com";
         postStatus("/auth/register", new AuthDtos.RegisterRequest(email, "deleteme", null));
         String code = capturedCode(email, EmailPurpose.REGISTER);
         ResponseEntity<AuthDtos.TokenResponse> verified = post("/auth/verify-email",
                 new AuthDtos.VerifyEmailRequest(email, code, "d1"), null, AuthDtos.TokenResponse.class);
         String access = verified.getBody().accessToken();
+        var userId = get("/auth/me", access, AuthDtos.UserResponse.class).getBody().id();
 
         ResponseEntity<AuthDtos.MessageResponse> deleted = rest.exchange("/auth/me",
                 HttpMethod.DELETE, new HttpEntity<>(headers(access)), AuthDtos.MessageResponse.class);
         assertThat(deleted.getStatusCode()).isEqualTo(HttpStatus.OK);
 
-        // Аккаунта больше нет: /auth/me не находит пользователя.
+        // Вход закрыт, но строка пользователя осталась (деактивация).
         assertThat(get("/auth/me", access, AuthDtos.ApiError.class).getStatusCode())
-                .isIn(HttpStatus.UNAUTHORIZED, HttpStatus.NOT_FOUND);
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
+
+        // Без служебного токена поддержка не может реактивировать аккаунт.
+        ResponseEntity<String> denied = rest.exchange(
+                "/support/accounts/" + userId + "/reactivate", HttpMethod.POST,
+                new HttpEntity<>(headers(null)), String.class);
+        assertThat(denied.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        HttpHeaders support = headers(null);
+        support.set("X-Support-Token", "test-support-token");
+        ResponseEntity<Void> reactivated = rest.exchange(
+                "/support/accounts/" + userId + "/reactivate", HttpMethod.POST,
+                new HttpEntity<>(support), Void.class);
+        assertThat(reactivated.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+        // После реактивации старый (ещё не истёкший) access-токен снова работает.
+        assertThat(get("/auth/me", access, AuthDtos.UserResponse.class).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
     }
 
     @Test
