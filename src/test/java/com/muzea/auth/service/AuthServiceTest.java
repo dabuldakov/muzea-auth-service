@@ -59,8 +59,9 @@ class AuthServiceTest {
     void requestLoginCodeIsNeutralForUnknownAccount() {
         when(userService.findByEmail("n@n.n")).thenReturn(Optional.empty());
 
-        authService.requestLoginCode("n@n.n");
+        AuthService.LoginCodeStatus status = authService.requestLoginCode("n@n.n");
 
+        org.junit.jupiter.api.Assertions.assertEquals(AuthService.LoginCodeStatus.NOT_FOUND, status);
         verify(rateLimiter).checkAndRecord("n@n.n", EmailPurpose.LOGIN);
         verify(emailCodeService, never()).issue(any(), any());
     }
@@ -69,8 +70,9 @@ class AuthServiceTest {
     void requestLoginCodeMasksEmailWithoutAt() {
         when(userService.findByEmail("broken")).thenReturn(Optional.empty());
 
-        authService.requestLoginCode("broken");
+        AuthService.LoginCodeStatus status = authService.requestLoginCode("broken");
 
+        org.junit.jupiter.api.Assertions.assertEquals(AuthService.LoginCodeStatus.NOT_FOUND, status);
         verify(emailCodeService, never()).issue(any(), any());
     }
 
@@ -78,17 +80,35 @@ class AuthServiceTest {
     void requestLoginCodeHandlesBlankEmail() {
         when(userService.findByEmail("")).thenReturn(Optional.empty());
 
-        authService.requestLoginCode("");
+        AuthService.LoginCodeStatus status = authService.requestLoginCode("");
 
+        org.junit.jupiter.api.Assertions.assertEquals(AuthService.LoginCodeStatus.NOT_FOUND, status);
         verify(emailCodeService, never()).issue(any(), any());
+    }
+
+    @Test
+    void requestLoginCodeIssuesForVerifiedAccount() {
+        User verified = User.builder()
+                .id(UUID.randomUUID())
+                .email("v@v.v")
+                .username("user")
+                .emailVerified(true)
+                .build();
+        when(userService.findByEmail("v@v.v")).thenReturn(Optional.of(verified));
+
+        AuthService.LoginCodeStatus status = authService.requestLoginCode("v@v.v");
+
+        org.junit.jupiter.api.Assertions.assertEquals(AuthService.LoginCodeStatus.SENT, status);
+        verify(emailCodeService).issue("v@v.v", EmailPurpose.LOGIN);
     }
 
     @Test
     void requestLoginCodeSkipsUnverifiedAccount() {
         when(userService.findByEmail("u@u.u")).thenReturn(Optional.of(user("u@u.u")));
 
-        authService.requestLoginCode("u@u.u");
+        AuthService.LoginCodeStatus status = authService.requestLoginCode("u@u.u");
 
+        org.junit.jupiter.api.Assertions.assertEquals(AuthService.LoginCodeStatus.UNVERIFIED, status);
         verify(emailCodeService, never()).issue(any(), any());
     }
 
@@ -120,8 +140,9 @@ class AuthServiceTest {
                 () -> authService.verifyLoginCode("a@b.c", "123456",
                         new com.muzea.auth.token.SessionInfo("d", "ua", "ip"))
         );
-        authService.requestLoginCode("a@b.c");
+        AuthService.LoginCodeStatus status = authService.requestLoginCode("a@b.c");
 
+        org.junit.jupiter.api.Assertions.assertEquals(AuthService.LoginCodeStatus.DELETED, status);
         verify(tokenService, never()).issue(any(), any());
         verify(emailCodeService, never()).issue(any(), any());
     }

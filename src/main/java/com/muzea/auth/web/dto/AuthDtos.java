@@ -84,6 +84,10 @@ public final class AuthDtos {
     public record MessageResponse(String message) {
     }
 
+    /** Ответ на запрос кода входа: статус нужен клиенту для понятной ошибки. */
+    public record OtpRequestResponse(String message, String status) {
+    }
+
     public record ApiError(String code, String message) {
     }
 }

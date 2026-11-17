@@ -60,11 +60,13 @@ public class AuthController {
     }
 
     @PostMapping("/otp/request")
-    public AuthDtos.MessageResponse requestLoginCode(@Valid @RequestBody AuthDtos.OtpRequest request,
-                                                     HttpServletRequest httpRequest) {
+    public AuthDtos.OtpRequestResponse requestLoginCode(@Valid @RequestBody AuthDtos.OtpRequest request,
+                                                        HttpServletRequest httpRequest) {
         ipRateLimiter.checkAndRecord(clientIpResolver.resolve(httpRequest));
-        authService.requestLoginCode(request.email());
-        return new AuthDtos.MessageResponse("If the account exists, a code has been sent");
+        AuthService.LoginCodeStatus status = authService.requestLoginCode(request.email());
+        return new AuthDtos.OtpRequestResponse(
+                "If the account exists, a code has been sent",
+                status.name());
     }
 
     @PostMapping("/otp/verify")

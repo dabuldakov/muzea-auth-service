@@ -56,20 +56,37 @@ public class AuthService {
                 .ifPresent(user -> emailCodeService.issue(user.getEmail(), EmailPurpose.REGISTER));
     }
 
+    /** Почему письмо с кодом входа не ушло (или ушло). */
+    public enum LoginCodeStatus {
+        SENT,
+        NOT_FOUND,
+        UNVERIFIED,
+        DELETED
+    }
+
     /**
-     * Запрос кода для входа. Ответ нейтрален, чтобы не раскрывать наличие email.
-     * Диагностика: если аккаунта нет или он не подтверждён, письмо не уходит —
-     * пишем это в лог (email маскируется), иначе поддержка видит только «200».
+     * Запрос кода для входа. Клиенту возвращается статус, чтобы показать
+     * «такой email не зарегистрирован» вместо молчаливого «код отправлен».
+     * Текст ответа остаётся нейтральным для совместимости со старыми клиентами.
      */
-    public void requestLoginCode(String email) {
+    public LoginCodeStatus requestLoginCode(String email) {
         rateLimiter.checkAndRecord(email, EmailPurpose.LOGIN);
-        var account = userService.findByEmail(email)
-                .filter(user -> !user.isDeleted() && user.isEmailVerified());
-        if (account.isEmpty()) {
-            log.info("Login OTP skipped: no verified account for {}", mask(email));
-            return;
+        var found = userService.findByEmail(email);
+        if (found.isEmpty()) {
+            log.info("Login OTP skipped: no account for {}", mask(email));
+            return LoginCodeStatus.NOT_FOUND;
         }
-        account.ifPresent(user -> emailCodeService.issue(user.getEmail(), EmailPurpose.LOGIN));
+        User user = found.get();
+        if (user.isDeleted()) {
+            log.info("Login OTP skipped: account deactivated for {}", mask(email));
+            return LoginCodeStatus.DELETED;
+        }
+        if (!user.isEmailVerified()) {
+            log.info("Login OTP skipped: email not verified for {}", mask(email));
+            return LoginCodeStatus.UNVERIFIED;
+        }
+        emailCodeService.issue(user.getEmail(), EmailPurpose.LOGIN);
+        return LoginCodeStatus.SENT;
     }
 
     private static String mask(String email) {
