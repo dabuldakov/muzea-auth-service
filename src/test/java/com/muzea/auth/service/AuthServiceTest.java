@@ -66,6 +66,24 @@ class AuthServiceTest {
     }
 
     @Test
+    void requestLoginCodeMasksEmailWithoutAt() {
+        when(userService.findByEmail("broken")).thenReturn(Optional.empty());
+
+        authService.requestLoginCode("broken");
+
+        verify(emailCodeService, never()).issue(any(), any());
+    }
+
+    @Test
+    void requestLoginCodeHandlesBlankEmail() {
+        when(userService.findByEmail("")).thenReturn(Optional.empty());
+
+        authService.requestLoginCode("");
+
+        verify(emailCodeService, never()).issue(any(), any());
+    }
+
+    @Test
     void requestLoginCodeSkipsUnverifiedAccount() {
         when(userService.findByEmail("u@u.u")).thenReturn(Optional.of(user("u@u.u")));
 

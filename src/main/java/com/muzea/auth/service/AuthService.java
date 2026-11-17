@@ -10,6 +10,7 @@ import com.muzea.auth.token.TokenService;
 import com.muzea.auth.user.User;
 import com.muzea.auth.user.UserService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +20,7 @@ import java.util.UUID;
 /**
  * Оркестрация регистрации и входа: связывает пользователей, email-коды и токены.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -54,12 +56,33 @@ public class AuthService {
                 .ifPresent(user -> emailCodeService.issue(user.getEmail(), EmailPurpose.REGISTER));
     }
 
-    /** Запрос кода для входа. Ответ нейтрален, чтобы не раскрывать наличие email. */
+    /**
+     * Запрос кода для входа. Ответ нейтрален, чтобы не раскрывать наличие email.
+     * Диагностика: если аккаунта нет или он не подтверждён, письмо не уходит —
+     * пишем это в лог (email маскируется), иначе поддержка видит только «200».
+     */
     public void requestLoginCode(String email) {
         rateLimiter.checkAndRecord(email, EmailPurpose.LOGIN);
-        userService.findByEmail(email)
-                .filter(user -> !user.isDeleted() && user.isEmailVerified())
-                .ifPresent(user -> emailCodeService.issue(user.getEmail(), EmailPurpose.LOGIN));
+        var account = userService.findByEmail(email)
+                .filter(user -> !user.isDeleted() && user.isEmailVerified());
+        if (account.isEmpty()) {
+            log.info("Login OTP skipped: no verified account for {}", mask(email));
+            return;
+        }
+        account.ifPresent(user -> emailCodeService.issue(user.getEmail(), EmailPurpose.LOGIN));
+    }
+
+    private static String mask(String email) {
+        if (email == null || email.isBlank()) {
+            return "<empty>";
+        }
+        int at = email.indexOf('@');
+        if (at <= 0) {
+            return "***";
+        }
+        String local = email.substring(0, at);
+        String visible = local.length() <= 2 ? local.substring(0, 1) : local.substring(0, 2);
+        return visible + "***" + email.substring(at);
     }
 
     /** Вход по коду: проверяет код и выдаёт токены. */
