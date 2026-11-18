@@ -58,6 +58,28 @@ class AuthFlowIT {
     private MailService mailService;
 
     @Test
+    void otpRequestReportsAccountStatus() {
+        ResponseEntity<AuthDtos.OtpRequestResponse> unknown = post("/auth/otp/request",
+                new AuthDtos.OtpRequest("nobody-status@example.com"), null,
+                AuthDtos.OtpRequestResponse.class);
+        assertThat(unknown.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(unknown.getBody()).isNotNull();
+        assertThat(unknown.getBody().status()).isEqualTo("NOT_FOUND");
+        assertThat(unknown.getBody().message()).isNotBlank();
+
+        String email = "status@example.com";
+        postStatus("/auth/register", new AuthDtos.RegisterRequest(email, "statususer", null));
+        String registerCode = capturedCode(email, EmailPurpose.REGISTER);
+        post("/auth/verify-email", new AuthDtos.VerifyEmailRequest(email, registerCode, "d"), null,
+                AuthDtos.TokenResponse.class);
+
+        ResponseEntity<AuthDtos.OtpRequestResponse> known = post("/auth/otp/request",
+                new AuthDtos.OtpRequest(email), null, AuthDtos.OtpRequestResponse.class);
+        assertThat(known.getBody()).isNotNull();
+        assertThat(known.getBody().status()).isEqualTo("SENT");
+    }
+
+    @Test
     void registerVerifyLoginRefreshFlow() {
         String email = "flow@example.com";
 
