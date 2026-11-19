@@ -48,7 +48,7 @@ services:
 
   # Балансировщик: внешний порт 8087, внутри — на все реплики app.
   nginx:
-    image: nginx:1.27-alpine
+    image: nginx:1.30-alpine
     restart: unless-stopped
     ports:
       - "8087:80"
