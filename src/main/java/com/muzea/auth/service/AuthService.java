@@ -45,6 +45,7 @@ public class AuthService {
         requireActive(user);
         emailCodeService.verify(user.getEmail(), EmailPurpose.REGISTER, code);
         userService.markEmailVerified(user);
+        log.info("Email verified, user={}", user.getId());
         return tokenService.issue(user, session);
     }
 
@@ -108,6 +109,7 @@ public class AuthService {
         User user = userService.getByEmail(email);
         requireActive(user);
         emailCodeService.verify(user.getEmail(), EmailPurpose.LOGIN, code);
+        log.info("Login code verified, user={}", user.getId());
         return tokenService.issue(user, session);
     }
 
@@ -139,6 +141,7 @@ public class AuthService {
 
     private void requireActive(User user) {
         if (user.isDeleted()) {
+            log.warn("Login blocked: account deactivated, user={}", user.getId());
             throw com.muzea.auth.error.AuthException.unauthorized(
                     "account_deleted", "Account is deactivated");
         }
@@ -154,5 +157,6 @@ public class AuthService {
         tokenService.deleteAllSessions(userId);
         emailCodeService.deleteForEmail(user.getEmail());
         userService.deactivate(user);
+        log.info("Account deactivated, user={}", userId);
     }
 }
