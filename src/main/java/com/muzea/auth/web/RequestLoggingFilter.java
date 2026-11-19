@@ -28,6 +28,8 @@ import java.util.UUID;
 @Order(Ordered.LOWEST_PRECEDENCE)
 public class RequestLoggingFilter extends OncePerRequestFilter {
 
+    private static final long SLOW_HTTP_MS = 1_000L;
+
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         return "OPTIONS".equalsIgnoreCase(request.getMethod());
@@ -48,9 +50,15 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         long start = System.currentTimeMillis();
         try {
             chain.doFilter(request, response);
+            long duration = System.currentTimeMillis() - start;
+            if (duration >= SLOW_HTTP_MS) {
+                log.warn("SLOW HTTP {} {} -> {} ({}ms, user={}, request_id={})",
+                        request.getMethod(), request.getRequestURI(), response.getStatus(),
+                        duration, user, requestId);
+            }
             log.info("HTTP {} {} -> {} ({}ms, user={}, request_id={})",
                     request.getMethod(), request.getRequestURI(), response.getStatus(),
-                    System.currentTimeMillis() - start, user, requestId);
+                    duration, user, requestId);
         } catch (IOException | ServletException | RuntimeException e) {
             log.error("HTTP {} {} -> ERROR after {}ms (user={}, request_id={})",
                     request.getMethod(), request.getRequestURI(),
