@@ -17,6 +17,19 @@ services:
     networks:
       - auth-network
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "32mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    mem_limit: 64m
+    networks:
+      - auth-network
+
   app:
     build: .
     restart: unless-stopped
@@ -50,11 +63,16 @@ services:
       # Приватный RSA-ключ (base64 PKCS#8). Без него prod не стартует.
       AUTH_RSA_PRIVATE_KEY: ${AUTH_RSA_PRIVATE_KEY}
       AUTH_RSA_KEY_ID: ${AUTH_RSA_KEY_ID:-primary}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      AUTH_RATE_LIMIT_REDIS_ENABLED: "true"
     env_file:
       - .env
     depends_on:
       postgres:
         condition: service_started
+      redis:
+        condition: service_healthy
     networks:
       - auth-network
 

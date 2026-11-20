@@ -44,8 +44,11 @@ dependencies {
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-database-postgresql'
 
-    // Rate limiting (in-memory, одна нода)
+    // Rate limiting (in-memory fallback, одна нода)
     implementation 'com.github.ben-manes.caffeine:caffeine'
+
+    // Общий Redis-стор для rate-limit'ов (несколько нод)
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
     // Utilities
     implementation 'org.projectlombok:lombok:1.18.30'

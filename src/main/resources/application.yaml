@@ -13,6 +13,10 @@ spring:
       minimum-idle: 2
       connection-timeout: 30000
       max-lifetime: 1800000
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
   jpa:
     hibernate:
       ddl-auto: none
@@ -67,6 +71,8 @@ auth:
   rate-limit:
     per-ip-hourly: ${AUTH_RATE_LIMIT_PER_IP_HOURLY:60}
     ip-cooldown-seconds: ${AUTH_RATE_LIMIT_IP_COOLDOWN_SECONDS:1}
+    # true — общие счётчики в Redis (несколько нод). false — Caffeine fallback.
+    redis-enabled: ${AUTH_RATE_LIMIT_REDIS_ENABLED:false}
 
 app:
   cors:

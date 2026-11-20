@@ -16,6 +16,9 @@ auth:
   # Нет дефолта — приложение не стартует без приватного ключа.
   rsa:
     private-key: ${AUTH_RSA_PRIVATE_KEY}
+  rate-limit:
+    # В проде несколько нод должны видеть общие счётчики.
+    redis-enabled: ${AUTH_RATE_LIMIT_REDIS_ENABLED:true}
 
 server:
   error:
