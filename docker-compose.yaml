@@ -20,6 +20,15 @@ services:
   app:
     build: .
     restart: unless-stopped
+    healthcheck:
+      # wget есть в busybox внутри alpine-образа. 503 от actuator (например,
+      # БД недоступна) тоже считается unhealthy.
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      # Spring Boot стартует ~20-40s; не считаем это падением.
+      start_period: 60s
     # Порт не публикуется наружу: масштабируем за nginx.
     deploy:
       replicas: ${APP_REPLICAS:-1}
@@ -42,7 +51,8 @@ services:
     env_file:
       - .env
     depends_on:
-      - postgres
+      postgres:
+        condition: service_started
     networks:
       - auth-network
 
@@ -58,7 +68,8 @@ services:
     volumes:
       - ./deploy:/etc/nginx/conf.d:ro
     depends_on:
-      - app
+      app:
+        condition: service_healthy
     networks:
       - auth-network
 

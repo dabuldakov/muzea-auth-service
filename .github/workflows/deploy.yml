@@ -79,4 +79,7 @@ jobs:
             git fetch --prune origin main
             git reset --hard origin/main
             docker compose up -d --build
+            # nginx резолвит IP апстрима на старте: после пересоздания app
+            # без reload запросы уходят на старый контейнер (502).
+            docker compose exec -T nginx nginx -s reload || true
             docker image prune -f
