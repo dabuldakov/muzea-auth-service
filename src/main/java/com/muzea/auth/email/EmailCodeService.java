@@ -49,6 +49,10 @@ public class EmailCodeService {
                 .findFirstByEmailIgnoreCaseAndPurposeAndConsumedAtIsNullOrderByCreatedAtDesc(email, purpose)
                 .orElseThrow(() -> AuthException.badRequest("otp_not_found", "No active code for this email"));
 
+        // Под pessimistic-lock строка уже наша; защита от гонки на всякий случай.
+        if (entity.getConsumedAt() != null) {
+            throw AuthException.badRequest("otp_already_used", "Code has already been used");
+        }
         if (entity.isExpired(Instant.now())) {
             throw AuthException.badRequest("otp_expired", "Code has expired");
         }
