@@ -81,6 +81,10 @@ app:
 
 server:
   port: ${SERVER_PORT:8080}
+  tomcat:
+    # MBean registry нужен Micrometer'у для tomcat_threads_* (busy/max).
+    mbeanregistry:
+      enabled: true
   error:
     include-message: always
 
