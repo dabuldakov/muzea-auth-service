@@ -38,6 +38,9 @@ public class SecurityConfig {
                                 "/.well-known/**",
                                 "/actuator/health",
                                 "/actuator/health/**",
+                                // Метрики Prometheus: доступны только через
+                                // внутренний metrics-listener nginx (loopback + туннель).
+                                "/actuator/prometheus",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**",

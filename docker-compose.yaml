@@ -52,6 +52,9 @@ services:
     restart: unless-stopped
     ports:
       - "8087:80"
+      # Внутренний metrics-listener: только loopback хоста, скрейпится
+      # Prometheus через SSH-туннель с машины мониторинга.
+      - "127.0.0.1:9187:9187"
     volumes:
       - ./deploy:/etc/nginx/conf.d:ro
     depends_on:

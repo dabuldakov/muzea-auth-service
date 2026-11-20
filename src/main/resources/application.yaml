@@ -1,4 +1,6 @@
 spring:
+  application:
+    name: auth-service
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
   datasource:
@@ -108,12 +110,20 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
   endpoint:
     health:
       show-details: never
       probes:
         enabled: true
+  metrics:
+    tags:
+      # Общий лейбл для всех метрик приложения (dashboard/alerts группируют по нему).
+      application: ${spring.application.name}
+    distribution:
+      # Гистограмма нужна для histogram_quantile(p95/p99) в Prometheus.
+      percentiles-histogram:
+        http.server.requests: true
   health:
     mail:
       enabled: false
