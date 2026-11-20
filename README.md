@@ -102,7 +102,8 @@ SPRING_PROFILES_ACTIVE=dev APP_MAIL_ENABLED=false ./gradlew bootRun
 ## Деплой
 
 Push в `main` запускает `.github/workflows/deploy.yml` (тесты + сборка, затем
-`docker compose up -d --build` на VPS). Внешний порт — `8087` (за nginx).
+`docker compose up -d --build` на VPS; после пересоздания app workflow делает
+`nginx -s reload`, чтобы nginx не держал старый IP). Внешний порт — `8087` (за nginx).
 
 ## Прод
 
