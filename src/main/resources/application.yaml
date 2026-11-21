@@ -45,7 +45,10 @@ spring:
           auth: true
           ssl:
             enable: ${MAIL_SSL:false}
-            trust: ${MAIL_TRUST:}
+            # Пустой trust нельзя задавать: он включает MailSSLSocketFactory
+            # с пустым списком доверенных хостов, и любая отправка падает с
+            # «Server is not trusted». Для самоподписанного хоста задайте
+            # SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_TRUST=<host>.
             checkserveridentity: ${MAIL_CHECK_IDENTITY:true}
           starttls:
             enable: ${MAIL_STARTTLS:true}
