@@ -56,6 +56,34 @@ class AuthServiceTest {
     }
 
     @Test
+    void repeatedRegistrationForUnverifiedAccountResendsTheCode() {
+        User user = User.builder()
+                .id(UUID.randomUUID()).email("x@y.z").username("user")
+                .emailVerified(false).build();
+        when(userService.findByEmail("x@y.z")).thenReturn(java.util.Optional.of(user));
+
+        authService.register("x@y.z", "user", null);
+
+        verify(rateLimiter).checkAndRecord("x@y.z", EmailPurpose.REGISTER);
+        verify(emailCodeService).issue("x@y.z", EmailPurpose.REGISTER);
+        verify(userService, never()).register(any(), any(), any());
+    }
+
+    @Test
+    void repeatedRegistrationForVerifiedAccountConflicts() {
+        User user = User.builder()
+                .id(UUID.randomUUID()).email("x@y.z").username("user")
+                .emailVerified(true).build();
+        when(userService.findByEmail("x@y.z")).thenReturn(java.util.Optional.of(user));
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                com.muzea.auth.error.AuthException.class,
+                () -> authService.register("x@y.z", "user", null)
+        );
+        verify(emailCodeService, never()).issue(any(), any());
+    }
+
+    @Test
     void requestLoginCodeIsNeutralForUnknownAccount() {
         when(userService.findByEmail("n@n.n")).thenReturn(Optional.empty());
 

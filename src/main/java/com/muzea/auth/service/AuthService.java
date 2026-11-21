@@ -33,6 +33,21 @@ public class AuthService {
     /** Регистрация: создаёт неверифицированного пользователя и шлёт код. */
     @Transactional
     public void register(String email, String username, String displayName) {
+        // Незавершённая регистрация: аккаунт уже создан, но email не подтверждён.
+        // Повторный запрос не должен давать 409 — иначе человек, не получивший
+        // письмо, застревает навсегда. Просто отправляем код ещё раз.
+        var existing = userService.findByEmail(email);
+        if (existing.isPresent()) {
+            User user = existing.get();
+            if (!user.isDeleted() && !user.isEmailVerified()) {
+                rateLimiter.checkAndRecord(user.getEmail(), EmailPurpose.REGISTER);
+                emailCodeService.issue(user.getEmail(), EmailPurpose.REGISTER);
+                log.info("Registration code re-sent for user={}", user.getId());
+                return;
+            }
+            throw com.muzea.auth.error.AuthException.conflict(
+                    "email_taken", "Email is already registered");
+        }
         User user = userService.register(email, username, displayName);
         rateLimiter.checkAndRecord(user.getEmail(), EmailPurpose.REGISTER);
         emailCodeService.issue(user.getEmail(), EmailPurpose.REGISTER);
